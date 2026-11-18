@@ -1,0 +1,76 @@
+﻿PRAGMA foreign_keys = ON;
+
+DROP TABLE IF EXISTS ORDER_ITEMS;
+DROP TABLE IF EXISTS ORDERS;
+DROP TABLE IF EXISTS MENU_PRODUCTS;
+DROP TABLE IF EXISTS MENUS;
+DROP TABLE IF EXISTS PRODUCTS;
+DROP TABLE IF EXISTS CLOSURE_DAYS;
+DROP TABLE IF EXISTS USERS;
+
+CREATE TABLE USERS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'ADMIN')),
+    is_blocked INTEGER NOT NULL DEFAULT 0 CHECK (is_blocked IN (0, 1)),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE PRODUCTS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    price REAL NOT NULL CHECK (price >= 0),
+    stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    is_available INTEGER NOT NULL DEFAULT 1 CHECK (is_available IN (0, 1))
+);
+
+CREATE TABLE MENUS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    availability_type TEXT NOT NULL CHECK (availability_type IN ('DAY', 'WEEK')),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    CHECK (end_date >= start_date)
+);
+
+CREATE TABLE MENU_PRODUCTS (
+    menu_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    PRIMARY KEY (menu_id, product_id),
+    FOREIGN KEY (menu_id) REFERENCES MENUS(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES PRODUCTS(id) ON DELETE CASCADE
+);
+
+CREATE TABLE CLOSURE_DAYS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    closure_date DATE NOT NULL UNIQUE,
+    reason TEXT
+);
+
+CREATE TABLE ORDERS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    pickup_date DATE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'RESERVED' CHECK (status IN ('RESERVED', 'COMPLETED', 'NO_SHOW', 'CANCELLED')),
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE ORDER_ITEMS (
+    order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price REAL NOT NULL CHECK (unit_price >= 0),
+    PRIMARY KEY (order_id, product_id),
+    FOREIGN KEY (order_id) REFERENCES ORDERS(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES PRODUCTS(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_orders_user_id ON ORDERS(user_id);
+CREATE INDEX idx_orders_pickup_date ON ORDERS(pickup_date);
+CREATE INDEX idx_menus_dates ON MENUS(start_date, end_date);
